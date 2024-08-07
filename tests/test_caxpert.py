@@ -4,7 +4,7 @@
 
 import pytest
 from ase.build import fcc111, molecule, add_adsorbate
-from caxpert.src.tasks.gen_str import generate_structures
+from caxpert.src.tasks.gen_str import generate_structures, select_covs
 
 def test_generate_structures_one_ads():
     """
@@ -50,18 +50,9 @@ def test_generate_structures_two_ads():
     # assert os.path.exists('init_structures.db')
 
 # test_generate_structures_one_ads()
-test_generate_structures_two_ads()
-# @pytest.fixture
-# def response():
-#     """Sample pytest fixture.
+# test_generate_structures_two_ads()
 
-#     See more at: http://doc.pytest.org/en/latest/fixture.html
-#     """
-#     # import requests
-#     # return requests.get('https://github.com/audreyr/cookiecutter-pypackage')
+def test_select_covs():
+    select_covs('init_structures.db', {'co':(0, 1), 'h':(0.1, 1)}, 4)
 
-
-# def test_content(response):
-#     """Sample pytest test function with the pytest fixture as an argument."""
-#     # from bs4 import BeautifulSoup
-#     # assert 'GitHub' in BeautifulSoup(response.content).title.string
+test_select_covs()
