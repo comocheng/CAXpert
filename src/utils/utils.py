@@ -1,6 +1,8 @@
 import time
 import numpy as np
 
+elements_place_holder = ['He', 'Ne', 'Ar', 'Kr', 'Xe', 'Rn']
+
 def timeit(func):
     def wrapper(*args, **kwargs):
         start_time = time.perf_counter()
@@ -14,9 +16,10 @@ def timeit(func):
 def check_reconstruction(atoms, tolerance=0.1):
     """
     This function checks if the surface is reconstructed
-    Args:
-        atoms (ase.Atoms): the structure to check
-        tolerance (float): The tolerance to consider atoms in the top layer (default: 0.1 Å).
+    atoms: ase.Atoms 
+        The structure to check
+    tolerance: float 
+        The tolerance to consider atoms in the top layer (default: 0.1 Å).
     """
     z_coords = atoms.positions[:, 2]
     top_layer_z = np.max(z_coords)
@@ -29,4 +32,13 @@ def check_reconstruction(atoms, tolerance=0.1):
     else:
         return True
 
-elements_place_holder = ['He', 'Ne', 'Ar', 'Kr', 'Xe', 'Rn']
+def is_generator_empty(generator):
+    """
+    Check if a generator is empty.
+    generator: The generator to check.
+    """
+    try:
+        first_item = next(generator)
+        return False
+    except StopIteration:
+        return True
