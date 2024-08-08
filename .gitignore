@@ -50,13 +50,6 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
 
 # Flask stuff:
 instance/
@@ -111,3 +104,9 @@ ENV/
 .vscode/
 .idea/
 
+# Fireworks
+FW_submit.script
+*.log
+#ASE stuff
+*.traj
+espresso*
