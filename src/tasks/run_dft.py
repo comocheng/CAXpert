@@ -53,6 +53,9 @@ class CalculateEnergy:
         logfile = os.path.join(parent_dir, 'ase.log')
         if self.restart:
             adslab = Trajectory(traj_file)[-1]
+            if np.max(np.linalg.norm(adslab.get_forces(), axis=1))<=self.fmax:
+                logging.warning(f'Structure is relaxed under the force threshold, terminate it.')
+                return 0
             traj_file = Trajectory(self.init_traj, 'a', adslab)
         else:
             adslab = Trajectory(self.init_traj)[0]
@@ -97,35 +100,3 @@ class CalculateEnergy:
             opt_slab.run(fmax=self.fmax)
         else:
             print(f'Structure {struct_id} is relaxed under the force threshold, skip it.')
-        
-    # @timeit
-    # def optimize_slab(self):
-    #     logfile = 'ase_lb.log'
-    #     # relax the slab first
-    #     slab = Trajectory('slab.traj')[-1]
-    #     slab_relax_traj = 'slab_relax.traj'
-
-    #     with open(logfile, 'a') as f:
-    #         f.write(f"Start DFT calculation:\n")
-    #     if not slab.constraints:
-    #         logging.warning('The structure has no constraints, please make sure you do not need it!')
-    #     print(slab.constraints)
-    #     slab = self.set_up_calculator(slab)
-    #     opt_slab = BFGS(slab, logfile=logfile, trajectory=slab_relax_traj)
-    #     opt_slab.run(fmax=self.calc_settings['fmax'])
-    #     print('Done!')
-
-
-# if __name__ == "__main__":
-#     dft_cmd = sys.argv[1].lower()
-#     # qe_setting_p = os.path.join(os.path.dirname(os.getcwd()), '../qe_settings.yaml')
-#     qe_setting_p = '/global/cfs/cdirs/m4126/xuchao/ce_models/co_ni/qe_settings.yaml'
-#     if dft_cmd == 'dft-ml':
-#         db_path = sys.argv[2]
-#         struct_id = sys.argv[3]
-#         output_path = sys.argv[4]
-#         CalculateEnergy(qe_setting_p).calculate_energy_from_db(db_path, struct_id, output_path)
-#     elif dft_cmd == 'dft':
-#         CalculateEnergy(qe_setting_p).calculate_energy()
-#     elif dft_cmd == 'slab':
-#         CalculateEnergy(qe_setting_p).optimize_slab()
