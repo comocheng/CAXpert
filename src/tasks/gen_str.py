@@ -141,7 +141,7 @@ def select_covs(db_path, ads_ranges, structure_num, output_db='dft_structures.db
         samples_pool.append(filtered_structures[i])
     with connect(output_db) as dbout:
         for struct in samples_pool:
-            print(struct.key_value_pairs, struct.id)
+            logging.info(f'{struct.key_value_pairs}, the structure id is{struct.id}')
             dbout.write(struct, key_value_pairs=struct.key_value_pairs, original_id=struct.id,round=1)
     logging.info(f'{len(samples_pool)} structures have been randomly selected and stored in the database.')
     if not output_db:
