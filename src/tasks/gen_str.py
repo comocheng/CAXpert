@@ -100,7 +100,7 @@ def generate_structures(prim_structure, adsorbates, ads_center_atom_ids, cell_si
             db.write(struct_to_db, top_layer_atom_index=top_layer_atom_index, **cov)
     logging.info('The structures have been generated and stored in the database.')
 
-def select_covs(db_path, ads_ranges, structure_num, output_db='dft_structures.db'):
+def select_covs(db_path, ads_ranges, structure_num, total_atom_num_constraint=False, output_db='dft_structures.db'):
     """
     This function randomly selects a structure from each coverage group and 
     stores the structure's index in a csv file.
@@ -112,6 +112,8 @@ def select_covs(db_path, ads_ranges, structure_num, output_db='dft_structures.db
         proritized to query the database.
     structure_num: int
         The number of structures to randomly select from the filtered coverage combinations.
+    total_atom_num_constraint: int
+        The maximum number of atoms in the unit cell, if set, the structures with more atoms will be filtered out.
     output_db: str 
         The output db to store the randomly selected structures.
 
@@ -131,7 +133,12 @@ def select_covs(db_path, ads_ranges, structure_num, output_db='dft_structures.db
             raise NoStructureMatchQueryError('No structure matches to your query in the database.')
         filtered_structures = []
         for struct in filtered_structs:
-            filtered_structures.append(struct)
+            if total_atom_num_constraint:
+                if len(struct) > total_atom_num_constraint:
+                    continue
+                filtered_structures.append(struct)
+            else:
+                filtered_structures.append(struct)
     random_sample_size = min(structure_num, len(filtered_structures))
     if random_sample_size != structure_num:
         logging.warning(f'The number of structures to randomly select is greater than the number of structures matches to your query. Randomly selecting {random_samples} structures.')

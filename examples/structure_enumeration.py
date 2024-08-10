@@ -12,7 +12,7 @@ co = molecule('CO', vacuum=13, tags=[2,2])
 h = molecule('H', vacuum=13, tags=[2])
 # Create a tuple of the adsorbate and the index of the binding atom
 adsorbate_list = [(co, 1), (h, 0)]
-add_adsorbate(prim_structure, co, 1.8, offset=(0, 0), mol_index=1)
+add_adsorbate(prim_structure, co, 1.8, position='fcc', offset=(0, 0), mol_index=1)
 # Create a list of the indices of the center atoms of the adsorbates
 ads_center_atom_ids = [a.index for a in prim_structure if a.symbol == 'C']
 # Set the cell size
