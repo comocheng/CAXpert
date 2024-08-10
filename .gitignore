@@ -105,7 +105,7 @@ ENV/
 .idea/
 
 # Fireworks
-FW_submit.script
+block_*
 *.log
 #ASE stuff
 *.traj
