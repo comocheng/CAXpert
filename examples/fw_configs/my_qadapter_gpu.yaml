@@ -1,0 +1,15 @@
+_fw_name: CommonAdapter
+_fw_q_type: SLURM
+rocket_launch: rlaunch -w /global/cfs/cdirs/m4126/xuchao/caxpert/examples/fw_configs/my_fworker.yaml -l /global/cfs/cdirs/m4126/xuchao/qm_calcs/methanation_ni/fws/my_launchpad.yaml singleshot
+qos: regular
+nodes: 4
+ntasks_per_node: 4
+gpus_per_task: 1
+walltime: 12:00:00
+constraint: gpu
+gpu-bind: map_gpu:0,1,2,3,4
+job_name: fw_test
+account: m4126
+logdir: /global/cfs/cdirs/m4126/xuchao/caxpert/examples/fw_configs/logs
+pre_rocket: "export SLURM_CPU_BIND='cores' \nexport OMP_PROC_BIND=spread \nexport OMP_PLACES=threads \nexport OMP_NUM_THREADS=1 \nsource /opt/cray/pe/cpe/23.12/restore_lmod_system_defaults.sh \nmodule load cpe/23.03 \nmodule load cudatoolkit/11.7 \nmodule load espresso/7.0-libxc-5.2.2-gpu \nsource activate /global/cfs/cdirs/m4126/xuchao/anaconda3/envs/mb/envs/fair-chem"
+post_rocket: echo "job finished"
