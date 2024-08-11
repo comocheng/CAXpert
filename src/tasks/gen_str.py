@@ -5,13 +5,15 @@ from ase.db import connect
 from ase.atom import Atom
 from ase.atoms import Atoms
 from ase.build.surface import add_adsorbate
+from ase.constraints import FixAtoms
+from ase.io import write
 from icet.tools import enumerate_structures
-from ..utils.error import AdsorbatesNotTaggedError, TooManyAdsorbatesError, NoStructureMatchQueryError
+from ..utils.error import AdsorbatesNotTaggedError, TooManyAdsorbatesError, NoStructureMatchQueryError, SurfaceNotTaggedError, BulkTagError 
 from ..utils.utils import elements_place_holder, is_generator_empty
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def generate_structures(prim_structure, adsorbates, ads_center_atom_ids, cell_size, surf_layer_tol=0.1, db_path='init_structures.db', elements_place_holder=elements_place_holder):
+def generate_structures(prim_structure, adsorbates, ads_center_atom_ids, cell_size, db_path='init_structures.db', elements_place_holder=elements_place_holder):
     """
     This function enumerates structures using the Cluster Expansion Tool (ICET).
     prim_structure: ase.atom.Atoms or ase.atom.Atom or str
@@ -23,8 +25,6 @@ def generate_structures(prim_structure, adsorbates, ads_center_atom_ids, cell_si
         The indices of center atoms of the adsorbates in the prim_str.
     cell_size: int
         The cell size to enumerate the structures.
-    surf_layer_tol: float
-        The tolerance for identify if an atom is in the top layer of the surface.
     db_path: str
         The path to the ASE database to store the structures
     elements_place_holder: list
@@ -41,6 +41,13 @@ def generate_structures(prim_structure, adsorbates, ads_center_atom_ids, cell_si
     species = []
     if not any([tag == 2 for tag in prim_structure.get_tags()]):
         raise AdsorbatesNotTaggedError('The adsorbate atoms in the primitive structure should be tagged as 2.')
+    if not any([tag == 1 for tag in prim_structure.get_tags()]):
+        raise SurfaceNotTaggedError('The surface atoms in the primitive structure should be tagged as 1.')
+    if not any([tag == 0 for tag in prim_structure.get_tags()]):
+        raise BulkTagError('The bulk atoms in the primitive structure should be tagged as 0.')
+    if any([tag not in [0,1,2] for tag in prim_structure.get_tags()]):
+        raise ValueError('The tags should be 0, 1, or 2. 0 for bulk, 1 for surface, and 2 for adsorbates.')
+    surface_z_coords = set([atom.position[2] for atom in prim_structure if atom.tag == 1])
 
     info = prim_structure.info.get('adsorbate_info', {})
     if 'top layer atom index' in info:
@@ -93,8 +100,9 @@ def generate_structures(prim_structure, adsorbates, ads_center_atom_ids, cell_si
                     add_adsorbate(struct_to_db, ads_identities[atom.symbol][0], atom.position[2]-surface_z, position=atom.position[:2], mol_index=ads_identities[atom.symbol][1])
                     cov[ads_identities[atom.symbol][0].get_chemical_formula().lower()] += 1
                 else:
-                    if atom.position[2] < surface_z + surf_layer_tol and atom.position[2] > surface_z - surf_layer_tol:
+                    if atom.position[2] in surface_z_coords:
                         top_layer_atom_num += 1
+                        atom.tag = 1
             for ads in cov.keys():
                 cov[ads] = round(cov[ads]/top_layer_atom_num, 3)
             db.write(struct_to_db, top_layer_atom_index=top_layer_atom_index, **cov)
@@ -134,7 +142,7 @@ def select_covs(db_path, ads_ranges, structure_num, total_atom_num_constraint=Fa
         filtered_structures = []
         for struct in filtered_structs:
             if total_atom_num_constraint:
-                if len(struct) > total_atom_num_constraint:
+                if len(struct.toatoms()) > total_atom_num_constraint:
                     continue
                 filtered_structures.append(struct)
             else:
@@ -144,12 +152,34 @@ def select_covs(db_path, ads_ranges, structure_num, total_atom_num_constraint=Fa
         logging.warning(f'The number of structures to randomly select is greater than the number of structures matches to your query. Randomly selecting {random_samples} structures.')
     random_samples = random.sample(range(len(filtered_structures)), random_sample_size)
     samples_pool = []
+    sample_ids = []
     for i in random_samples:
         samples_pool.append(filtered_structures[i])
     with connect(output_db) as dbout:
         for struct in samples_pool:
             logging.info(f'{struct.key_value_pairs}, the structure id is{struct.id}')
+            sample_ids.append(struct.id)
             dbout.write(struct, key_value_pairs=struct.key_value_pairs, original_id=struct.id,round=1)
     logging.info(f'{len(samples_pool)} structures have been randomly selected and stored in the database.')
     if not output_db:
         return samples_pool
+    return sample_ids
+
+def make_trajs(struct_ids, fix_layer, target_db='dft_structures.db', dest_dir='dft_relax'):
+    with connect(target_db) as db:
+        for row in db.select():
+            atoms = row.toatoms()
+            constraints = FixAtoms([a.index for a in atoms if abs(a.z - fix_layer) < 0.1 or a.z < fix_layer])
+            atoms.set_constraint(constraints)
+            for a in atoms:
+                if a.symbol == 'Ni':
+                    a.magmom = 10.8
+            db.write(atoms, id=row.id, key_value_pairs=row.key_value_pairs)
+
+    with connect(target_db) as db:
+        for i in struct_ids:
+            row = db.get(original_id=i)
+            atoms = row.toatoms()
+            dir_ = f'{dest_dir}/{row.original_id}'
+            os.makedirs(dir_, exist_ok=True)
+            write(f'{dir_}/init.traj', atoms)
