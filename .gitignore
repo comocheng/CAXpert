@@ -110,3 +110,4 @@ block_*
 #ASE stuff
 *.traj
 espresso*
+.editorconfig
