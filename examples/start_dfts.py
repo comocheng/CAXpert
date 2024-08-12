@@ -34,8 +34,9 @@ pseudopotentials = {
                         }
 kpts=(5, 5, 1)
 
-def run_dft(file_path, fmax=0.03):
+def run_dft(file_path, restart=False, fmax=0.03):
     dir_ = os.path.dirname(file_path)
+    print(dir_)
     qe_calc = Espresso(
                 command=command,
                 pseudopotentials=pseudopotentials,
@@ -46,16 +47,29 @@ def run_dft(file_path, fmax=0.03):
                 disk_io='none',
                 directory=dir_
                 )
-    CalculateEnergy(file_path, qe_calc, restart=False, fmax=fmax).calculate_energy()
+    CalculateEnergy(file_path, qe_calc, restart=restart, fmax=fmax).calculate_energy()
 
 if __name__ == '__main__':
     if len(sys.argv)==2:
         f = sys.argv[1]
         run_dft(f)
-    if len(sys.argv)>2:
+    elif len(sys.argv)==3:
+        print(2)
         f = sys.argv[1]
-        fmax = float(sys.argv[2])
-        run_dft(f, fmax)
+        if sys.argv[2] != 'restart':
+            try:
+                fmax = float(sys.argv[2])
+            except ValueError:
+                print('Usage: python run_dft.py file_path [fmax] or python run_dft.py file_path restart [fmax]')
+                sys.exit(1)
+            fmax = float(sys.argv[2])
+            run_dft(f, fmax=fmax)
+        else:
+            restart = True
+            run_dft(f, restart=restart)
+    elif len(sys.argv)==4:
+        f = sys.argv[1]
+        run_dft(f, restart=True, fmax=float(sys.argv[3]))
     else:
-        print('Usage: python run_dft.py file_path [fmax]')
-        sys.exit(1)
+        print('Usage: python run_dft.py file_path [fmax] or python run_dft.py file_path restart [fmax]')
+        # sys.exit(1)
