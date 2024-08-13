@@ -1,12 +1,14 @@
 from ase.build import fcc111, molecule, add_adsorbate
-from caxpert.src.tasks.gen_str import generate_structures, select_covs
+from ase.io.trajectory import Trajectory
 from ase.db import connect
-from ase.constraints import FixAtoms
 import os
-from ase.io import write
+import numpy as np
+from caxpert.src.tasks.gen_str import generate_structures, select_covs, make_trajs, get_slabs_from_db
 
 prim_structure = fcc111('Ni',size=(1,1,4), vacuum=13)
+fix_layer = prim_structure[1].position[2]
 prim_structure.set_tags([0 for i in range(len(prim_structure))])
+prim_structure[3].tag = 1
 # Create an adsorbate structure
 co = molecule('CO', vacuum=13, tags=[2,2])
 h = molecule('H', vacuum=13, tags=[2])
@@ -20,21 +22,23 @@ cell_size = 10
 # Generate the structures
 generate_structures(prim_structure, adsorbate_list, ads_center_atom_ids, cell_size)
 
-select_covs('init_structures.db', {'co':(0, 1), 'h':(0.1, 1)}, 10)
-with connect('dft_structures.db') as db:
-    for row in db.select():
-        atoms = row.toatoms()
-        fix_layer = atoms[1].z 
-        constraints = FixAtoms([a.index for a in atoms if abs(a.z - fix_layer) < 0.1 or a.z < fix_layer])
-        atoms.set_constraint(constraints)
-        for a in atoms:
-            if a.symbol == 'Ni':
-                a.magmom = 10.8
-        db.write(atoms, id=row.id, key_value_pairs=row.key_value_pairs)
+# select the structures with CO and H
+co_h_ids = select_covs('init_structures.db', {'co':(0.3, 1), 'h':(0.1, 1)}, 10, total_atom_num_constraint=24)
+# select the structures with only H
+h_only_ids = select_covs('init_structures.db', {'co':(0, 0), 'h':(0.1, 1)}, 10, total_atom_num_constraint=24, output_db='dft_structures_h_only.db')
 
-with connect('dft_structures.db') as db:
-    for row in db.select():
-        atoms = row.toatoms()
-        dir_ = f'dft_relax/{row.original_id}'
-        os.makedirs(dir_, exist_ok=True)
-        write(f'{dir_}/init.traj', atoms)
+make_trajs(co_h_ids, fix_layer, 'dft_structures.db',  'dft_relax')
+make_trajs(h_only_ids, fix_layer, 'dft_structures_h_only.db',  'dft_relax_h_only')
+
+get_slabs_from_db('init_structures.db', fix_layer=fix_layer)
+
+slabs_db = 'slabs.db'
+with connect(slabs_db) as db:
+    for i in os.listdir('slabs'):
+        relaxed_atoms = Trajectory(f'slabs/{i}/relax.traj')[-1]
+        forces = relaxed_atoms.get_forces()
+        max_force = np.max(np.linalg.norm(forces, axis=1))
+        if max_force < 0.05:
+            db.write(relaxed_atoms)
+        else:
+            print(f'{i} is not converged')
