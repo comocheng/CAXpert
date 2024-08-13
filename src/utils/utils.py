@@ -14,7 +14,7 @@ def timeit(func):
         return result
     return wrapper
 
-def check_reconstruction(atoms, tolerance=0.1):
+def check_reconstruction_fcc111(atoms, tolerance=0.1):
     """
     This function checks if the surface is reconstructed
     atoms: ase.Atoms 

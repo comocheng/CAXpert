@@ -4,7 +4,7 @@ import os, logging
 from ase.io.trajectory import Trajectory
 from ase.optimize import BFGS
 from ase.db import connect
-from caxpert.src.utils.utils import timeit, check_reconstruction
+from caxpert.src.utils.utils import timeit
 import numpy as np
 
 class CalculateEnergy:
@@ -90,7 +90,7 @@ class CalculateEnergy:
             adslab = db.get(struct_id).toatoms()
         logfile = os.path.join(os.path.dirname(output_path), 'ase.log')
         f_max = np.max(np.linalg.norm(adslab.get_forces(), axis=1))
-        if f_max > self.fmax and not check_reconstruction(adslab):
+        if f_max >= self.fmax:
             if not adslab.constraints:
                 logging.warning('The structure has no constraints, please make sure you do not need it!')
             adslab.calc = self.calculator
