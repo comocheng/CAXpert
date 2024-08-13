@@ -102,7 +102,9 @@ def generate_structures(prim_structure, adsorbates, ads_center_atom_ids, cell_si
                 else:
                     if atom.position[2] in surface_z_coords:
                         top_layer_atom_num += 1
-                        atom.tag = 1
+                        struct_to_db[i].tag = 1
+                    else:
+                        struct_to_db[i].tag = 0
             for ads in cov.keys():
                 cov[ads] = round(cov[ads]/top_layer_atom_num, 3)
             db.write(struct_to_db, top_layer_atom_index=top_layer_atom_index, **cov)
@@ -165,11 +167,11 @@ def select_covs(db_path, ads_ranges, structure_num, total_atom_num_constraint=Fa
         return samples_pool
     return sample_ids
 
-def make_trajs(struct_ids, fix_layer, target_db='dft_structures.db', dest_dir='dft_relax'):
+def make_trajs(struct_ids, fix_layer, target_db='dft_structures.db', dest_dir='dft_relax', tolerance=0.1):
     with connect(target_db) as db:
         for row in db.select():
             atoms = row.toatoms()
-            constraints = FixAtoms([a.index for a in atoms if abs(a.z - fix_layer) < 0.1 or a.z < fix_layer])
+            constraints = FixAtoms([a.index for a in atoms if abs(a.z - fix_layer) < tolerance or a.z < fix_layer])
             atoms.set_constraint(constraints)
             for a in atoms:
                 if a.symbol == 'Ni':
@@ -183,3 +185,33 @@ def make_trajs(struct_ids, fix_layer, target_db='dft_structures.db', dest_dir='d
             dir_ = f'{dest_dir}/{row.original_id}'
             os.makedirs(dir_, exist_ok=True)
             write(f'{dir_}/init.traj', atoms)
+
+def get_slabs_from_db(db_path, fix_layer, dest_path='slabs', tolerance=0.1):
+    """
+    This function reads the structures from the database and writes only the unique slabs to a directory,
+    the slabs will be relaxed by DFT to calculate the adsorption energies of adsorbates.
+    db_path: str
+        The path to the ASE database where the structures are stored.
+    dest_path: str
+        The path to the directory to store the slabs.
+    """
+    slabs = dict()
+    with connect(db_path) as db:
+        for row in db.select():
+            atoms = row.toatoms()
+            slabs[atoms.cell.cellpar().tobytes()] = row.id
+        
+        for v in slabs.values():
+            row = db.get(id=v)
+            atoms = row.toatoms()
+            for i in sorted(range(len(atoms)), reverse=True):
+                if atoms[i].tag == 2:
+                    del atoms[i]
+            constraints = FixAtoms([a.index for a in atoms if abs(a.z - fix_layer) < tolerance or a.z < fix_layer])
+            atoms.set_constraint(constraints)
+            for a in atoms:
+                if a.symbol == 'Ni':
+                    a.magmom = 10.8
+            os.makedirs(f'{dest_path}/{row.id}', exist_ok=True)
+            write(f'{dest_path}/{row.id}/init.traj', atoms)
+    logging.info(f'The slabs have been written to path {dest_path}.')
