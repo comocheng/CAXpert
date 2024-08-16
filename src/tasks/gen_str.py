@@ -13,7 +13,7 @@ from ..utils.utils import elements_place_holder, is_generator_empty
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-def generate_structures(prim_structure, adsorbates, ads_center_atom_ids, cell_size, db_path='init_structures.db', elements_place_holder=elements_place_holder):
+def generate_structures(prim_structure, adsorbates, ads_center_atom_ids, cell_size, db_path='init_structures.db', elements_place_holder=elements_place_holder, fixed_layers=None):
     """
     This function enumerates structures using the Cluster Expansion Tool (ICET).
     prim_structure: ase.atom.Atoms or ase.atom.Atom or str
@@ -48,7 +48,10 @@ def generate_structures(prim_structure, adsorbates, ads_center_atom_ids, cell_si
     if any([tag not in [0,1,2] for tag in prim_structure.get_tags()]):
         raise ValueError('The tags should be 0, 1, or 2. 0 for bulk, 1 for surface, and 2 for adsorbates.')
     surface_z_coords = set([atom.position[2] for atom in prim_structure if atom.tag == 1])
-
+    # only works with FixAtoms constraint
+    constraints = prim_structure.constraints[0]
+    if constraints:
+        fixed_layers = [round(prim_structure[i].z, 2) for i in constraints.index]
     info = prim_structure.info.get('adsorbate_info', {})
     if 'top layer atom index' in info:
         top_layer_atom_index = info['top layer atom index']
@@ -107,6 +110,12 @@ def generate_structures(prim_structure, adsorbates, ads_center_atom_ids, cell_si
                         struct_to_db[i].tag = 0
             for ads in cov.keys():
                 cov[ads] = round(cov[ads]/top_layer_atom_num, 3)
+
+            if fixed_layers:
+                constraint = FixAtoms([a.index for a in struct_to_db if round(a.z, 2) in fixed_layers])
+                struct_to_db.set_constraint(constraint)
+            else:
+                logging.warning('No fixed layers are provided.')
             db.write(struct_to_db, top_layer_atom_index=top_layer_atom_index, **cov)
     logging.info('The structures have been generated and stored in the database.')
 
