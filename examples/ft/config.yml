@@ -1,0 +1,110 @@
+amp: true
+dataset:
+  train:
+    src: training_data/datasets/train.db
+    a2g_args:
+      r_energy: true
+      r_forces: true
+  val:
+    src: training_data/datasets/val.db
+    a2g_args:
+      r_energy: true
+      r_forces: true
+  test:
+    src: training_data/datasets/test.db
+    a2g_args:
+      r_energy: false
+      r_forces: false
+evaluation_metrics:
+  metrics:
+    energy:
+    - mae
+    forces:
+    - forcesx_mae
+    - forcesy_mae
+    - forcesz_mae
+    - mae
+    - cosine_similarity
+    - magnitude_error
+    misc:
+    - energy_forces_within_threshold
+  primary_metric: forces_mae
+gpus: 4
+logger: tensorboard
+loss_fns:
+- energy:
+    coefficient: 2
+    fn: mae
+- forces:
+    coefficient: 100
+    fn: l2mae
+model:
+  alpha_drop: 0.1
+  attn_activation: silu
+  attn_alpha_channels: 64
+  attn_hidden_channels: 64
+  attn_value_channels: 16
+  distance_function: gaussian
+  drop_path_rate: 0.05
+  edge_channels: 128
+  ffn_activation: silu
+  ffn_hidden_channels: 128
+  grid_resolution: 18
+  lmax_list:
+  - 6
+  max_neighbors: 20
+  max_num_elements: 90
+  max_radius: 12.0
+  mmax_list:
+  - 2
+  name: equiformer_v2
+  norm_type: layer_norm_sh
+  num_distance_basis: 512
+  num_heads: 8
+  num_layers: 12
+  num_sphere_samples: 128
+  otf_graph: true
+  proj_drop: 0.0
+  regress_forces: true
+  share_atom_edge_embedding: false
+  sphere_channels: 128
+  use_atom_edge_embedding: true
+  use_attn_renorm: true
+  use_gate_act: false
+  use_grid_mlp: true
+  use_pbc: true
+  use_s2_act_attn: false
+  use_sep_s2_act: true
+  weight_init: uniform
+optim:
+  batch_size:                   4         # 6
+  eval_batch_size:              4         # 6
+  load_balancing: atoms
+  num_workers: 8
+  lr_initial:                   0.0004    # [0.0002, 0.0004], eSCN uses 0.0008 for batch size 96
+
+  optimizer: AdamW
+  optimizer_params:
+    weight_decay: 0.001
+  scheduler: LambdaLR
+  scheduler_params:
+    lambda_type: cosine
+    warmup_factor: 0.2
+    warmup_epochs: 0.1
+    lr_min_factor: 0.01         #
+
+  max_epochs: 80
+  clip_grad_norm: 100
+  ema_decay: 0.999
+
+  eval_every: 500
+outputs:
+  energy:
+    level: system
+  forces:
+    eval_on_free_atoms: true
+    level: atom
+    train_on_free_atoms: true
+task:
+  dataset: ase_db
+trainer: equiformerv2_forces
