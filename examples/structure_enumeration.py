@@ -3,12 +3,15 @@ from ase.io.trajectory import Trajectory
 from ase.db import connect
 import os
 import numpy as np
+from ase.constraints import FixAtoms
 from caxpert.src.tasks.gen_str import generate_structures, select_covs, make_trajs, get_slabs_from_db
 
 prim_structure = fcc111('Ni',size=(1,1,4), vacuum=13)
 fix_layer = prim_structure[1].position[2]
 prim_structure.set_tags([0 for i in range(len(prim_structure))])
 prim_structure[3].tag = 1
+prim_structure.set_constraint(FixAtoms([a.index for a in prim_structure if a.z <= fix_layer]))
+
 # Create an adsorbate structure
 co = molecule('CO', vacuum=13, tags=[2,2])
 h = molecule('H', vacuum=13, tags=[2])
