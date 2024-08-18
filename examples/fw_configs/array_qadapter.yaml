@@ -1,0 +1,16 @@
+_fw_name: CommonAdapter
+_fw_q_type: SLURM
+_fw_template_file: /global/cfs/cdirs/m4126/xuchao/caxpert/examples/fw_configs/slurm_arr_jobs.txt
+rocket_launch: rlaunch -w /global/cfs/cdirs/m4126/xuchao/caxpert/examples/fw_configs/my_fworker.yaml -l /global/cfs/cdirs/m4126/xuchao/qm_calcs/methanation_ni/fws/my_launchpad.yaml singleshot
+qos: regular
+nodes: 1
+ntasks_per_node: 1
+cpus_per_task: 4
+walltime: 1:00:00
+constraint: cpu
+job_name: ocp_infers_1-9880.sh
+account: m4126
+array: 1-9880
+logdir: /global/cfs/cdirs/m4126/xuchao/caxpert/examples/fw_configs/logs
+pre_rocket: "export SLURM_CPU_BIND='cores' \nexport OMP_PROC_BIND=spread \nexport OMP_PLACES=threads \nexport OMP_NUM_THREADS=8 \nexport HDF5_USE_FILE_LOCKING=FALSE \nmodule load espresso/7.0-libxc-5.2.2-cpu \nsource activate /global/cfs/cdirs/m4126/xuchao/anaconda3/envs/mb/envs/fair-chem"
+post_rocket: echo "job finished"
