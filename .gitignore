@@ -107,7 +107,13 @@ ENV/
 # Fireworks
 block_*
 *.log
+*FW*
 #ASE stuff
 *.traj
 espresso*
 .editorconfig
+#Checkpoints of the ML model
+*checkpoint*
+events.out.tfevents.*
+*.npz
+train.txt
