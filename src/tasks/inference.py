@@ -87,10 +87,10 @@ def ml_validate(checkpoint_path, database_path, trainer='equiformerv2_forces', f
 #                 db.write(adslab, id=id, key_value_pairs=data_to_db)
 #     print('Done!')
 
-def ml_relax_db(input_db, checkpoint_path, start_id, output_path='', interval=1000, traj_file=None, log_file='-', fmax=0.03, steps=300, trainer='equiformerv2_forces'):    
-    output_traj = os.path.join(output_path, f'ml_inf_{start_id}_to_{stop_id}.traj')
+def ml_relax_db(input_db, checkpoint_path, start_id, output_path='', interval=1000, traj_file=None, log_file='-', fmax=0.03, steps=300, trainer='equiformerv2_forces'):
     start_id = int(start_id)
     stop_id = start_id + interval
+    output_traj = os.path.join(output_path, f'ml_inf_{start_id}_to_{stop_id}.traj')
     if os.path.exists(output_traj):
         start_id = int(start_id) + len(Trajectory(output_traj)) - 1 
 
