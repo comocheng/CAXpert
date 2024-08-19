@@ -11,11 +11,11 @@ def get_job_num(yml_path):
     array_str = data['array']
     if "-" in array_str:
         job_num = int(array_str.split('-')[1]) - int(array_str.split('-')[0]) + 1
-    elif ":" in array_str and "," in array_str:
+    elif ":" in array_str and "-" in array_str:
         job_num = 0
-        start = int(array_str.split(",")[0])
-        stop = int(array_str.split(",")[1].split(":")[0]) + 1
-        interval = int(array_str.split(",")[1].split(":")[1])
+        start = int(array_str.split("-")[0])
+        stop = int(array_str.split("-")[1].split(":")[0]) + 1
+        interval = int(array_str.split("-")[1].split(":")[1])
         for i in range(start, stop, interval):
             job_num += 1
     elif "," in array_str and ":" not in array_str:
