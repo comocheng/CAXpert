@@ -1,5 +1,5 @@
 from caxpert.src.tasks.make_db import MakeTrainingDB
-import subprocess
+import subprocess, os
 import fairchem.core.common.tutorial_utils as utils
 from caxpert.src.utils.utils import add_fw
 
