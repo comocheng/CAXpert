@@ -6,11 +6,11 @@ qos: regular
 nodes: 1
 ntasks_per_node: 1
 cpus_per_task: 4
-walltime: 1:00:00
+walltime: 12:00:00
 constraint: cpu
 job_name: ocp_infers_1-9880.sh
 account: m4126
-array: 1-9880
+array: 1,1001,2001,3001,4001,5001,6001,7001,8001,9001
 logdir: /global/cfs/cdirs/m4126/xuchao/caxpert/examples/fw_configs/logs
 pre_rocket: "export SLURM_CPU_BIND='cores' \nexport OMP_PROC_BIND=spread \nexport OMP_PLACES=threads \nexport OMP_NUM_THREADS=8 \nexport HDF5_USE_FILE_LOCKING=FALSE \nmodule load espresso/7.0-libxc-5.2.2-cpu \nsource activate /global/cfs/cdirs/m4126/xuchao/anaconda3/envs/mb/envs/fair-chem"
 post_rocket: echo "job finished"
