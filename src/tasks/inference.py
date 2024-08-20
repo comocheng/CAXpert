@@ -123,48 +123,78 @@ def mk_inf_db(input_db, trajs_path, output_db):
                 odb.write(a, key_value_pairs=key_value_pairs)
     print('Done!')
 
-def plot_energy(input_db, adsorbate_names, metal_atom, unit_cell_metal_atom_num, output_fig=None):
-    """
-    Plot the energy of the structures in the database. This function is not designed to work with alloys.
-    input_db: str
-        The path to the database.
-    adsorbate_names: list
-        The names of the adsorbates.
-    metal_atom: str
-        The name of the metal atom.
-    unit_cell_metal_atom_num: int
-        The number of metal atoms in the unit cell.
-    output_fig: str
-        The path to save the plot.
-    """
-    if len(adsorbate_names) > 2:
-        raise ValueError('System with adsorbate number more than 2 is not supported now!')
-    energies = []
-    coverages = []
+class MLInfDataProcess:
+    def __init__(self, input_db, adsorbate_names, metal_atom, unit_cell_metal_atom_num):
+        """
+        This class is designed to process the data for ML inference.
+        input_db: str
+            The path to the database.
+        adsorbate_names: list
+            The names of the adsorbates.
+        metal_atom: str
+            The name of the metal atom.
+        unit_cell_metal_atom_num: int
+            The number of metal atoms in the unit cell.
+        """
+        self.input_db = input_db
+        self.adsorbate_names = adsorbate_names
+        self.metal_atom = metal_atom
+        self.unit_cell_metal_atom_num = unit_cell_metal_atom_num
+    def plot_energy(self, output_fig=None):
+        """
+        Plot the energy of the structures in the database. This function is not designed to work with alloys.
+        output_fig: str
+            The path to save the plot.
+        """
+        if len(self.adsorbate_names) > 2:
+            raise ValueError('System with adsorbate number more than 2 is not supported now!')
+        energies = []
+        coverages = []
+        with connect(self.input_db) as db:
+            for row in db.select():
+                energy = row.toatoms().get_potential_energy()
+                covs = [row.key_value_pairs[n] for n in self.adsorbate_names]
+                sites = row.toatoms().get_chemical_symbols().count(self.metal_atom)
+                energies.append(energy/(sites/self.unit_cell_metal_atom_num))
+                coverages.append(covs)
+        if len(coverages[0]) == 1:
+            coverages = [i for i in coverages]
+            plt.scatter(coverages, energies)
+        elif len(coverages[0]) == 2:
+            x = np.array([i[0] for i in coverages])
+            y = np.array([i[1] for i in coverages])
+            data = zip(x,y,np.array(energies))
+            df = pd.DataFrame(data, columns=[self.adsorbate_names[0], self.adsorbate_names[1], 'Adsorption Energy(eV)'])
+            fig = px.scatter_3d(df, x=self.adsorbate_names[0], y=self.adsorbate_names[1], z='Adsorption Energy(eV)')
+            fig.update_layout(
+                margin=dict(l=0, r=0, t=0, b=0),
+                scene=dict(
+                aspectratio=dict(x=2, y=2, z=1)  # Make x and y axes appear longer
+            ),
+        )
+            fig.update_traces(marker=dict(size=2), selector=dict(mode='markers'))
+            if output_fig is not None:
+                fig.write_html(output_fig)
+            else:
+                fig.show()
+
+def get_convex_hull(input_db, adsorbate_names):
+    structs = dict()
     with connect(input_db) as db:
         for row in db.select():
             energy = row.toatoms().get_potential_energy()
             covs = [row.key_value_pairs[n] for n in adsorbate_names]
             sites = row.toatoms().get_chemical_symbols().count(metal_atom)
-            energies.append(energy/(sites/unit_cell_metal_atom_num))
-            coverages.append(covs)
-    if len(coverages[0]) == 1:
-        coverages = [i for i in coverages]
-        plt.scatter(coverages, energies)
-    elif len(coverages[0]) == 2:
-        x = np.array([i[0] for i in coverages])
-        y = np.array([i[1] for i in coverages])
-        data = zip(x,y,np.array(energies))
-        df = pd.DataFrame(data, columns=[adsorbate_names[0], adsorbate_names[1], 'Adsorption Energy(eV)'])
-        fig = px.scatter_3d(df, x=adsorbate_names[0], y=adsorbate_names[1], z='Adsorption Energy(eV)')
-        fig.update_layout(
-            margin=dict(l=0, r=0, t=0, b=0),
-            scene=dict(
-            aspectratio=dict(x=2, y=2, z=1)  # Make x and y axes appear longer
-        ),
-    )
-        fig.update_traces(marker=dict(size=2), selector=dict(mode='markers'))
-        if output_fig is not None:
-            fig.write_html(output_fig)
-        else:
-            fig.show()
+            
+        
+
+def get_structures_to_validate(gs_ids, dft_list_csv):
+    old_gs_ids = pd.read_csv(dft_list_csv).iloc[:,:].to_numpy()
+    dft_1d = old_gs_ids.reshape(old_gs_ids.shape[0] * old_gs_ids.shape[1])
+    mask = ~np.isnan(dft_1d)
+    old_gs_ids = dft_1d[mask]
+    next_round = []
+    for i in gs_ids:
+        if i not in list(old_gs_ids) and i not in [0, 1]:
+            next_round.append(i)
+    return next_round
