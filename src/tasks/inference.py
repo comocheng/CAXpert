@@ -154,8 +154,8 @@ class MLInfDataProcess:
             for row in db.select():
                 energy = row.toatoms().get_potential_energy()
                 covs = [row.key_value_pairs[n] for n in self.adsorbate_names]
-                sites = row.toatoms().get_chemical_symbols().count(self.metal_atom)
-                energies.append(energy/(sites/self.unit_cell_metal_atom_num))
+                sites = row.toatoms().get_chemical_symbols().count(self.metal_atom)/self.unit_cell_metal_atom_num
+                energies.append(energy/sites)
                 coverages.append(covs)
         if len(coverages[0]) == 1:
             coverages = [i for i in coverages]
@@ -177,24 +177,28 @@ class MLInfDataProcess:
                 fig.write_html(output_fig)
             else:
                 fig.show()
-
-def get_convex_hull(input_db, adsorbate_names):
-    structs = dict()
-    with connect(input_db) as db:
-        for row in db.select():
-            energy = row.toatoms().get_potential_energy()
-            covs = [row.key_value_pairs[n] for n in adsorbate_names]
-            sites = row.toatoms().get_chemical_symbols().count(metal_atom)
-            
-        
-
-def get_structures_to_validate(gs_ids, dft_list_csv):
-    old_gs_ids = pd.read_csv(dft_list_csv).iloc[:,:].to_numpy()
-    dft_1d = old_gs_ids.reshape(old_gs_ids.shape[0] * old_gs_ids.shape[1])
-    mask = ~np.isnan(dft_1d)
-    old_gs_ids = dft_1d[mask]
-    next_round = []
-    for i in gs_ids:
-        if i not in list(old_gs_ids) and i not in [0, 1]:
-            next_round.append(i)
-    return next_round
+    def get_convex_hull(self):
+        structs = dict()
+        with connect(self.input_db) as db:
+            for row in db.select():
+                covs = tuple([row.key_value_pairs[n] for n in self.adsorbate_names])
+                sites = row.toatoms().get_chemical_symbols().count(self.metal_atom)/self.unit_cell_metal_atom_num
+                energy = row.toatoms().get_potential_energy() / sites
+                if not covs in structs:
+                    structs[covs] = [energy]
+                else:
+                    structs[covs].append(energy)
+        hulls = dict()
+        for k in structs.keys():
+            hulls[k] = min(structs[k])
+        return hulls
+    # def get_structures_to_validate(self, gs_ids, dft_list_csv):
+    #     old_gs_ids = pd.read_csv(dft_list_csv).iloc[:,:].to_numpy()
+    #     dft_1d = old_gs_ids.reshape(old_gs_ids.shape[0] * old_gs_ids.shape[1])
+    #     mask = ~np.isnan(dft_1d)
+    #     old_gs_ids = dft_1d[mask]
+    #     next_round = []
+    #     for i in gs_ids:
+    #         if i not in list(old_gs_ids) and i not in [0, 1]:
+    #             next_round.append(i)
+    #     return next_round
