@@ -1,4 +1,4 @@
-import time, os
+import os
 from fairchem.core.common.relaxation.ase_utils import OCPCalculator
 from functools import wraps
 from ase.optimize import BFGS
@@ -8,6 +8,8 @@ from sklearn.metrics import mean_squared_error
 import numpy as np
 from ase.io.trajectory import Trajectory
 from caxpert.src.utils.utils import timeit
+import plotly.express as px
+import pandas as pd
 
 
 def ml_validate(checkpoint_path, database_path, trainer='equiformerv2_forces', fig_path='parity_plot.png'):
@@ -88,3 +90,81 @@ def ml_relax_db(input_db, checkpoint_path, start_id, output_path='', interval=10
                 opt_slab.run(fmax=fmax, steps=steps)
                 traj.write(adslab)
     print('Done!')
+
+def mk_inf_db(input_db, trajs_path, output_db):
+    """
+    This function writes the ML relaxed structures to a database.
+    It reads the extra key_value_pairs from the original input_db
+    and writes them to the output_db.
+    input_db: str
+        The path to the original database.
+    trajs_path: str or list
+        The path to the directory with the relaxed structures written in .traj format.
+        if a str is passed, the files must be written as 'ml_inf_{START ID}_to_{STOP ID}.traj'.
+        if a list is passed, the files must be in the order to match the structures' order in the input_db.
+    output_db: str
+        The path to the output database.
+    """
+    if type(trajs_path) == list:
+        trajs = trajs_path
+    else:
+        traj_ps = [i for i in os.listdir(trajs_path) if 'ml_inf' in i]
+        traj_ps = sorted(traj_ps, key=lambda x:int(x.split('_')[2]))
+        trajs = [os.path.join(trajs_path, t) for t in traj_ps]
+    if not os.path.exists(input_db):
+        raise FileNotFoundError(f'{input_db} does not exist!')
+    str_id = 0
+    with connect(input_db) as db, connect(output_db) as odb:
+        for t in trajs:
+            atoms = Trajectory(t)
+            for a in atoms:
+                str_id += 1
+                key_value_pairs = db.get(id=str_id).key_value_pairs
+                odb.write(a, key_value_pairs=key_value_pairs)
+    print('Done!')
+
+def plot_energy(input_db, adsorbate_names, metal_atom, unit_cell_metal_atom_num, output_fig=None):
+    """
+    Plot the energy of the structures in the database. This function is not designed to work with alloys.
+    input_db: str
+        The path to the database.
+    adsorbate_names: list
+        The names of the adsorbates.
+    metal_atom: str
+        The name of the metal atom.
+    unit_cell_metal_atom_num: int
+        The number of metal atoms in the unit cell.
+    output_fig: str
+        The path to save the plot.
+    """
+    if len(adsorbate_names) > 2:
+        raise ValueError('System with adsorbate number more than 2 is not supported now!')
+    energies = []
+    coverages = []
+    with connect(input_db) as db:
+        for row in db.select():
+            energy = row.toatoms().get_potential_energy()
+            covs = [row.key_value_pairs[n] for n in adsorbate_names]
+            sites = row.toatoms().get_chemical_symbols().count(metal_atom)
+            energies.append(energy/(sites/unit_cell_metal_atom_num))
+            coverages.append(covs)
+    if len(coverages[0]) == 1:
+        coverages = [i for i in coverages]
+        plt.scatter(coverages, energies)
+    elif len(coverages[0]) == 2:
+        x = np.array([i[0] for i in coverages])
+        y = np.array([i[1] for i in coverages])
+        data = zip(x,y,np.array(energies))
+        df = pd.DataFrame(data, columns=[adsorbate_names[0], adsorbate_names[1], 'Adsorption Energy(eV)'])
+        fig = px.scatter_3d(df, x=adsorbate_names[0], y=adsorbate_names[1], z='Adsorption Energy(eV)')
+        fig.update_layout(
+            margin=dict(l=0, r=0, t=0, b=0),
+            scene=dict(
+            aspectratio=dict(x=2, y=2, z=1)  # Make x and y axes appear longer
+        ),
+    )
+        fig.update_traces(marker=dict(size=2), selector=dict(mode='markers'))
+        if output_fig is not None:
+            fig.write_html(output_fig)
+        else:
+            fig.show()
