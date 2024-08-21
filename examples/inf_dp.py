@@ -1,6 +1,7 @@
 from caxpert.src.tasks.inference import mk_inf_db, MLInfDataProcess
 from ase.calculators.espresso import Espresso
 from caxpert.src.tasks.run_dft import ml_val
+import os
 
 # mk_inf_db('init_structures.db','ft/ml_inf', 'ft/ml_inf.db')
 mp = MLInfDataProcess('ft/ml_inf.db', ['co', 'h'], 'Ni', 4)
@@ -15,6 +16,11 @@ ids_to_val = []
 for strs in [h_only, co_only, h_co]:
     for v in strs.values():
         ids_to_val.append(v[1])
+
+calculated_ids = [int(i) for i in os.listdir('dft_relax')]
+calculated_ids.extend([int(i) for i in os.listdir('dft_relax_h_only')])
+
+ids_to_val = [i for i in ids_to_val if i not in calculated_ids]
 
 espresso_settings = {
     'control': {
@@ -57,4 +63,4 @@ qe_calc = Espresso(
                 disk_io='none',
                 )
 
-ml_val(ids_to_val, 'ft/ml_inf.db', qe_calc, 'ft/ml_inf_val.db')
+ml_val(ids_to_val, 'ft/ml_inf.db', qe_calc, 'ft/ml_inf_dft_val.db')
