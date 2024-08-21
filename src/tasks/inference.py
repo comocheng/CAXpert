@@ -1,4 +1,4 @@
-import os
+import os, random
 from fairchem.core.common.relaxation.ase_utils import OCPCalculator
 from functools import wraps
 from ase.optimize import BFGS
@@ -184,21 +184,68 @@ class MLInfDataProcess:
                 covs = tuple([row.key_value_pairs[n] for n in self.adsorbate_names])
                 sites = row.toatoms().get_chemical_symbols().count(self.metal_atom)/self.unit_cell_metal_atom_num
                 energy = row.toatoms().get_potential_energy() / sites
+                index = row.id
                 if not covs in structs:
-                    structs[covs] = [energy]
+                    structs[covs] = [(energy,index)]
                 else:
-                    structs[covs].append(energy)
+                    structs[covs].append((energy, index))
         hulls = dict()
         for k in structs.keys():
-            hulls[k] = min(structs[k])
+            energies = [e[0] for e in structs[k]]
+            indices_in_db = [e[1] for e in structs[k]]
+            hulls[k] = (min(energies), indices_in_db[np.argmin(energies)])
         return hulls
-    # def get_structures_to_validate(self, gs_ids, dft_list_csv):
-    #     old_gs_ids = pd.read_csv(dft_list_csv).iloc[:,:].to_numpy()
-    #     dft_1d = old_gs_ids.reshape(old_gs_ids.shape[0] * old_gs_ids.shape[1])
-    #     mask = ~np.isnan(dft_1d)
-    #     old_gs_ids = dft_1d[mask]
-    #     next_round = []
-    #     for i in gs_ids:
-    #         if i not in list(old_gs_ids) and i not in [0, 1]:
-    #             next_round.append(i)
-    #     return next_round
+    def validate_with_dft(self, id_list, calculator, fmax=0.03):
+        """
+        Validate the ML model with single point DFT.
+        id_list: list
+            The list of structure IDs to validate.
+        calculator: ASE calculator
+            The calculator to use for DFT calculation.
+        fmax: float
+            The maximum force for the relaxation.
+        """
+        val_energies = dict()
+        with connect(self.input_db) as db:
+            for i in id_list:
+                row = db.get(id=i)
+                atoms = row.toatoms()
+                atoms.set_calculator(calculator)
+                energy = atoms.get_potential_energy()
+                fmax = max(np.linalg.norm(atoms.get_forces(), axis=1))
+                val_energies[i] = (energy, fmax)
+        return val_energies
+    def get_structures_to_validate(self, cov_limit, structure_num, cov_must_have=None):
+        """
+        Randomly sample the structures in a certain covrage limit to validate.
+        cov_limit: [(float, float)]
+            The coverage limits for the adsorbates.
+        structure_num: int
+            The number of structures to validate.
+        cov_must_have: [(float, float)]
+            The coverages that the structures must have. Use only when you want to add specific structures to the validation set.
+        """
+        convex_hull = self.get_convex_hull()
+        if not len(cov_limit) == len(list(convex_hull.keys())[0]):
+            raise ValueError('The number of coverage limits must be the same as the number of adsorbates!')
+        
+        for i, limit in enumerate(cov_limit):
+            to_validate = dict()
+            lower = limit[0]
+            upper = limit[1]
+            if not lower <= upper:
+                raise ValueError('The lower limit must be smaller than or equal to the upper limit!')
+
+            for k in convex_hull.keys():
+                if lower <= k[i] <= upper:
+                    to_validate[k] = convex_hull[k]
+            convex_hull = to_validate
+        random_sample = random.sample(list(convex_hull.keys()), structure_num)
+        if cov_must_have is not None:
+            for c in cov_must_have:
+                if not c in random_sample:
+                    random_sample.append(c)
+        strs_to_val = dict()
+        for i in random_sample:
+            strs_to_val[i] = convex_hull[i]      
+        return strs_to_val

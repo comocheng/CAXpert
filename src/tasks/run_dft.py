@@ -6,6 +6,7 @@ from ase.optimize import BFGS
 from ase.db import connect
 from caxpert.src.utils.utils import timeit
 import numpy as np
+from ase.calculators.singlepoint import SinglePointCalculator
 
 class CalculateEnergy:
     """
@@ -100,3 +101,19 @@ class CalculateEnergy:
             opt_slab.run(fmax=self.fmax)
         else:
             print(f'Structure {struct_id} is relaxed under the force threshold, skip it.')
+
+def ml_val(strut_ids, db_path, calculator,output_db):
+    structs = []
+    with connect(db_path) as db:
+        for i in strut_ids:
+            row = db.get(id=i)
+            adslab = row.toatoms()
+            adslab.calc = calculator
+            structs.append((adslab, row.id, row.key_value_pairs))
+    for s, original_id, kvp in structs:
+        energy = s.get_potential_energy()
+        forces = s.get_forces()
+        with connect(output_db) as db:
+            calc = SinglePointCalculator(s, energy=energy, forces=forces)
+            s.set_calculator(calc)
+            db.write(s, original_id=original_id, key_value_pairs=kvp)
