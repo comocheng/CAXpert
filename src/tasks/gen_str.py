@@ -50,6 +50,15 @@ def generate_structures(prim_structure, adsorbates, ads_center_atom_ids, cell_si
     surface_z_coords = set([atom.position[2] for atom in prim_structure if atom.tag == 1])
     # only works with FixAtoms constraint
     constraints = prim_structure.constraints[0]
+    mag_ms = dict()
+    if not all([i==0 for i in prim_structure.get_initial_magnetic_moments()]):
+        elements = set([atom.symbol for atom in prim_structure if atom.tag != 2])
+        for e in elements:
+            for atom in prim_structure:
+                if atom.symbol == e:
+                    mag_ms[e] = atom.magmom
+                    break
+
     if constraints:
         fixed_layers = [round(prim_structure[i].z, 2) for i in constraints.index]
     info = prim_structure.info.get('adsorbate_info', {})
@@ -116,6 +125,10 @@ def generate_structures(prim_structure, adsorbates, ads_center_atom_ids, cell_si
                 struct_to_db.set_constraint(constraint)
             else:
                 logging.warning('No fixed layers are provided.')
+            if mag_ms:
+                for a in struct_to_db:
+                    if a.tag != 2:
+                        a.magmom = mag_ms[a.symbol]
             db.write(struct_to_db, top_layer_atom_index=top_layer_atom_index, **cov)
     logging.info('The structures have been generated and stored in the database.')
 
