@@ -5,6 +5,7 @@ from ase.io.trajectory import Trajectory
 from ase.optimize import BFGS
 from ase.db import connect
 from caxpert.src.utils.utils import timeit
+from caxpert.src.utils.error import StructuresNotValidatedError
 import numpy as np
 from ase.calculators.singlepoint import SinglePointCalculator
 
@@ -102,18 +103,53 @@ class CalculateEnergy:
         else:
             print(f'Structure {struct_id} is relaxed under the force threshold, skip it.')
 
-def ml_val(strut_ids, db_path, calculator,output_db):
-    structs = []
-    with connect(db_path) as db:
-        for i in strut_ids:
-            row = db.get(id=i)
-            adslab = row.toatoms()
-            adslab.calc = calculator
-            structs.append((adslab, row.id, row.key_value_pairs))
+def ml_val(strut_ids, db_path, calculator,output_db, restart=False):
+    
+    if restart:
+        if not os.path.exists(output_db):
+            raise FileNotFoundError(f'The output database {output_db} is not found, please make sure it exists.')
+        structs = []
+        restart_ids = []
+        with connect(output_db) as db:
+            for row in db.select():
+                if not row.toatoms().get_chemical_formula():
+                    structs.append(row.original_id)
+        with connect(db_path) as db:
+            for i in restart_ids:
+                row = db.get(id=i)
+                adslab = row.toatoms()
+                adslab.calc = calculator
+                structs.append((adslab, row.id, row.key_value_pairs))
+    else:
+        if os.path.exists(output_db):
+            with connect(output_db) as db:
+                for row in db.select():
+                    if not row.toatoms().get_chemical_formula():
+                        raise StructuresNotValidatedError('Some structures in the output database are not validated, run this function with restart mode.')
+
+        structs = []
+        with connect(db_path) as db , connect(output_db) as db_out:
+            for i in strut_ids:
+                row = db.get(id=i)
+                adslab = row.toatoms()
+                try:
+                    db_out.get(original_id=row.id)
+                    logging.warning(f'Structure {row.id} is already calculated, skip it.')
+                except KeyError:
+                    db_out.reserve(original_id=row.id) # reserve the id to save the indices randomly sampled            
+                    adslab.calc = calculator
+                    structs.append((adslab, row.id, row.key_value_pairs))
+
     for s, original_id, kvp in structs:
+        # # temperary solution for Ni magmom, will be deleted in the future
+        # for a in s:
+        #     if a.symbol == 'Ni':
+        #         a.magmom = 10.8
         energy = s.get_potential_energy()
         forces = s.get_forces()
         with connect(output_db) as db:
             calc = SinglePointCalculator(s, energy=energy, forces=forces)
             s.set_calculator(calc)
-            db.write(s, original_id=original_id, key_value_pairs=kvp)
+            index = db.get(original_id=original_id).id
+            # db.write(s, original_id=original_id, key_value_pairs=kvp)
+            db.update(index, s, data=kvp)
