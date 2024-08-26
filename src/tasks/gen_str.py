@@ -189,18 +189,23 @@ def select_covs(db_path, ads_ranges, structure_num, total_atom_num_constraint=Fa
         return samples_pool
     return sample_ids
 
-def make_trajs(struct_ids, fix_layer, target_db='dft_structures.db', dest_dir='dft_relax', tolerance=0.1):
-    with connect(target_db) as db:
+def make_trajs(struct_ids, src_db='dft_structures.db', dest_dir='dft_relax'):
+    """
+    This function writes the structures to a directory in the form of ASE trajectory files.
+    struct_ids: list
+        A list of structure ids to write to the directory. Be aware that the ids are the original ids in the original structure database.
+        The ids in the original database are stored as a key named "original_id" for each structure in the src_db. 
+    src_db: str
+        The path to the ASE database where the structures are stored.
+    dest_dir: str
+        The path to the directory to store the structures.
+    """
+    with connect(src_db) as db:
         for row in db.select():
             atoms = row.toatoms()
-            constraints = FixAtoms([a.index for a in atoms if abs(a.z - fix_layer) < tolerance or a.z < fix_layer])
-            atoms.set_constraint(constraints)
-            for a in atoms:
-                if a.symbol == 'Ni':
-                    a.magmom = 10.8
             db.write(atoms, id=row.id, key_value_pairs=row.key_value_pairs)
 
-    with connect(target_db) as db:
+    with connect(src_db) as db:
         for i in struct_ids:
             row = db.get(original_id=i)
             atoms = row.toatoms()

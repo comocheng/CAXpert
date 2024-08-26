@@ -33,8 +33,8 @@ co_h_ids = select_covs('init_structures.db', {'co':(0.3, 1), 'h':(0.1, 1)}, 10, 
 # select the structures with only H
 h_only_ids = select_covs('init_structures.db', {'co':(0, 0), 'h':(0.1, 1)}, 10, total_atom_num_constraint=24, output_db='dft_structures_h_only.db')
 
-make_trajs(co_h_ids, fix_layer, 'dft_structures.db',  'dft_relax')
-make_trajs(h_only_ids, fix_layer, 'dft_structures_h_only.db',  'dft_relax_h_only')
+make_trajs(co_h_ids, 'dft_structures.db',  'dft_relax')
+make_trajs(h_only_ids, 'dft_structures_h_only.db',  'dft_relax_h_only')
 
 get_slabs_from_db('init_structures.db', fix_layer=fix_layer)
 
