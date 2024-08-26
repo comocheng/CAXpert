@@ -213,7 +213,7 @@ def make_trajs(struct_ids, src_db='dft_structures.db', dest_dir='dft_relax'):
             os.makedirs(dir_, exist_ok=True)
             write(f'{dir_}/init.traj', atoms)
 
-def get_slabs_from_db(db_path, fix_layer, dest_path='slabs', tolerance=0.1):
+def get_slabs_from_db(db_path, dest_path='slabs'):
     """
     This function reads the structures from the database and writes only the unique slabs to a directory,
     the slabs will be relaxed by DFT to calculate the adsorption energies of adsorbates.
@@ -234,11 +234,6 @@ def get_slabs_from_db(db_path, fix_layer, dest_path='slabs', tolerance=0.1):
             for i in sorted(range(len(atoms)), reverse=True):
                 if atoms[i].tag == 2:
                     del atoms[i]
-            constraints = FixAtoms([a.index for a in atoms if abs(a.z - fix_layer) < tolerance or a.z < fix_layer])
-            atoms.set_constraint(constraints)
-            for a in atoms:
-                if a.symbol == 'Ni':
-                    a.magmom = 10.8
             os.makedirs(f'{dest_path}/{row.id}', exist_ok=True)
             write(f'{dest_path}/{row.id}/init.traj', atoms)
     logging.info(f'The slabs have been written to path {dest_path}.')

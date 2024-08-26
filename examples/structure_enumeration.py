@@ -36,7 +36,7 @@ h_only_ids = select_covs('init_structures.db', {'co':(0, 0), 'h':(0.1, 1)}, 10, 
 make_trajs(co_h_ids, 'dft_structures.db',  'dft_relax')
 make_trajs(h_only_ids, 'dft_structures_h_only.db',  'dft_relax_h_only')
 
-get_slabs_from_db('init_structures.db', fix_layer=fix_layer)
+get_slabs_from_db('init_structures.db')
 
 slabs_db = 'slabs.db'
 with connect(slabs_db) as db:
