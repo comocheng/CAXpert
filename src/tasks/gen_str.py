@@ -1,5 +1,5 @@
 import random, os, logging
-import pandas as pd
+import numpy as np
 from ase.io.trajectory import Trajectory
 from ase.db import connect
 from ase.atom import Atom
@@ -237,3 +237,42 @@ def get_slabs_from_db(db_path, dest_path='slabs'):
             os.makedirs(f'{dest_path}/{row.id}', exist_ok=True)
             write(f'{dest_path}/{row.id}/init.traj', atoms)
     logging.info(f'The slabs have been written to path {dest_path}.')
+
+def ml_val_db_to_trajs(ml_val_db_path, ml_inf_db_path=None, start_id=1, dest_dir='relax_after_ml', fmax_threshold=0.05, calculator=None, energy_threshold=None):
+    if ml_val_db_path:
+        db = connect(ml_val_db_path)
+    else:
+        raise FileNotFoundError('The ml_val_db_path database path is not provided.')
+    if energy_threshold and os.path.exists(ml_inf_db_path):
+        ml_inf_db = connect(ml_inf_db_path)
+    elif energy_threshold and not os.path.exists(ml_inf_db_path):
+        raise FileNotFoundError('The ml_inf_db_path database path is not provided, we need it as the reference to get the energy difference.')
+
+    for row in db.select(f'id>={start_id}'):
+        atoms = row.toatoms()
+        fmax = np.max(np.linalg.norm(atoms.get_forces(), axis=1))
+        if fmax > fmax_threshold:
+            if not atoms.constraints:
+                logging.warning('The structure has no constraints, please make sure you do not need it!')
+
+            if calculator:
+                atoms.calc = calculator
+                logging.warning('The calculator is not provided, remember to add it before relaxation.')
+            dir_ = f'{dest_dir}/{row.original_id}'
+            os.makedirs(dir_, exist_ok=True)
+            write(f'{dir_}/init.traj', atoms)
+
+        else:
+            if energy_threshold:
+                ml_inf_row = ml_inf_db.get(id=row.original_id)
+                energy_diff = abs(atoms.get_potential_energy() - ml_inf_row.atoms().get_potential_energy())
+                if energy_diff > energy_threshold:
+                    if not atoms.constraints:
+                        logging.warning('The structure has no constraints, please make sure you do not need it!')
+
+                    if calculator:
+                        atoms.calc = calculator
+                        logging.warning('The calculator is not provided, remember to add it before relaxation.')      
+                    dir_ = f'{dest_dir}/{row.original_id}'
+                    os.makedirs(dir_, exist_ok=True)
+                    write(f'{dir_}/init.traj', atoms)
