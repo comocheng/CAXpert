@@ -29,22 +29,22 @@ cell_size = 10
 generate_structures(prim_structure, adsorbate_list, ads_center_atom_ids, cell_size)
 
 # select the structures with CO and H
-# co_h_ids = select_covs('init_structures.db', {'co':(0.3, 1), 'h':(0.1, 1)}, 10, total_atom_num_constraint=24)
-# # select the structures with only H
-# h_only_ids = select_covs('init_structures.db', {'co':(0, 0), 'h':(0.1, 1)}, 10, total_atom_num_constraint=24, output_db='dft_structures_h_only.db')
+co_h_ids = select_covs('init_structures.db', {'co':(0.3, 1), 'h':(0.1, 1)}, 10, total_atom_num_constraint=24)
+# select the structures with only H
+h_only_ids = select_covs('init_structures.db', {'co':(0, 0), 'h':(0.1, 1)}, 10, total_atom_num_constraint=24, output_db='dft_structures_h_only.db')
 
-# make_trajs(co_h_ids, fix_layer, 'dft_structures.db',  'dft_relax')
-# make_trajs(h_only_ids, fix_layer, 'dft_structures_h_only.db',  'dft_relax_h_only')
+make_trajs(co_h_ids, fix_layer, 'dft_structures.db',  'dft_relax')
+make_trajs(h_only_ids, fix_layer, 'dft_structures_h_only.db',  'dft_relax_h_only')
 
-# get_slabs_from_db('init_structures.db', fix_layer=fix_layer)
+get_slabs_from_db('init_structures.db', fix_layer=fix_layer)
 
-# slabs_db = 'slabs.db'
-# with connect(slabs_db) as db:
-#     for i in os.listdir('slabs'):
-#         relaxed_atoms = Trajectory(f'slabs/{i}/relax.traj')[-1]
-#         forces = relaxed_atoms.get_forces()
-#         max_force = np.max(np.linalg.norm(forces, axis=1))
-#         if max_force < 0.05:
-#             db.write(relaxed_atoms)
-#         else:
-#             print(f'{i} is not converged')
+slabs_db = 'slabs.db'
+with connect(slabs_db) as db:
+    for i in os.listdir('slabs'):
+        relaxed_atoms = Trajectory(f'slabs/{i}/relax.traj')[-1]
+        forces = relaxed_atoms.get_forces()
+        max_force = np.max(np.linalg.norm(forces, axis=1))
+        if max_force < 0.05:
+            db.write(relaxed_atoms)
+        else:
+            print(f'{i} is not converged')
