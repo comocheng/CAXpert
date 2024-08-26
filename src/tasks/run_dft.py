@@ -104,6 +104,21 @@ class CalculateEnergy:
             print(f'Structure {struct_id} is relaxed under the force threshold, skip it.')
 
 def ml_val(strut_ids, db_path, calculator,output_db, restart=False):
+    """
+    This function performs DFT single point calculations on the ML predicted structures in the database.
+    strut_ids: list
+        A list of structure ids in the initial structure database to calculate.
+    db_path: str
+        The path to the initial structure database.
+    calculator: ase.calculators.calculator.Calculator
+        An ASE calculator instance configured for the DFT calculation.
+    output_db: str
+        The path to the output database.
+    restart: bool
+        A flag to indicate if the calculation is a restart from a previous calculation, if set to True, 
+        the function will read the output database and carry on to calculate the structures that are not validated.
+        If set to True, the struct_ids variable will be ignored, so users can leave it as an empty list.
+    """
     
     if restart:
         if not os.path.exists(output_db):
