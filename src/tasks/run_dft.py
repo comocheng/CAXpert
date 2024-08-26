@@ -128,7 +128,7 @@ def ml_val(strut_ids, db_path, calculator,output_db, restart=False):
         with connect(output_db) as db:
             for row in db.select():
                 if not row.toatoms().get_chemical_formula():
-                    structs.append(row.original_id)
+                    restart_ids.append(row.original_id)
         with connect(db_path) as db:
             for i in restart_ids:
                 row = db.get(id=i)
@@ -154,7 +154,6 @@ def ml_val(strut_ids, db_path, calculator,output_db, restart=False):
                     db_out.reserve(original_id=row.id) # reserve the id to save the indices randomly sampled            
                     adslab.calc = calculator
                     structs.append((adslab, row.id, row.key_value_pairs))
-
     for s, original_id, kvp in structs:
         # # temperary solution for Ni magmom, will be deleted in the future
         # for a in s:
