@@ -16,8 +16,9 @@ CAXpert
 
 
 
-This package predicts the ground states at different coverages for adsorption system by finetuning OCP models
-
+This package predicts the ground states at different coverages for adsorption system by finetuning OCP models.
+This is still an on-going project, feel free to download the scripts and send emails to xu.chao@northeastern.edu
+for any questions
 
 * Free software: MIT license
 * Documentation: https://caxpert.readthedocs.io.
